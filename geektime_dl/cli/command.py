@@ -66,7 +66,7 @@ def add_argument(*args, **kwargs):
 
 
 class Command(metaclass=CommandType):
-    _default_save_cfg_keys = ['area', 'account', 'password', 'output_folder']
+    _default_save_cfg_keys = ['area', 'account', 'password', 'auth_token', 'auth_type', 'output_folder']
 
     def __init__(self):
         self._parser = None
@@ -100,6 +100,11 @@ class Command(metaclass=CommandType):
                             help="specify the account phone number")
         parser.add_argument("-p", "--password", dest="password",
                             help="specify the account password")
+        parser.add_argument("-t", "--auth-token", dest="auth_token",
+                            help="specify the authentication token")
+        parser.add_argument("--auth-type", dest="auth_type", default='password',
+                            choices=['password', 'token'],
+                            help="specify authentication type: password or token")
         parser.add_argument("--area", dest="area", default='86',
                             help="specify the account country code")
         parser.add_argument("--config", dest="config", default=geektime_cfg,

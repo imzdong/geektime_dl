@@ -70,7 +70,7 @@ class EBook(Command):
         sys.stdout.write('下载{}目录 done\n'.format(column_title))
         # articles
         articles = tqdm(articles)
-        for article in articles:
+        for i, article in enumerate(articles):
             articles.set_description('HTML 文件下载中:{}'.format(
                 article['article_title'][:10]))
             file_basename = format_file_name(article['article_title'])
@@ -79,6 +79,13 @@ class EBook(Command):
                 continue
             render.render_article_html(
                 file_basename, article['article_content'], **kwargs)
+            
+            # 添加请求间隔，避免触发限流
+            if i < len(articles) - 1:  # 不是最后一篇文章
+                import time
+                import random
+                wait_time = random.uniform(0.5, 1.5)  # 0.5-1.5秒随机间隔
+                time.sleep(wait_time)
 
     @add_argument("course_ids", type=str,
                   help="specify the target course ids")
@@ -106,6 +113,12 @@ class EBook(Command):
         output_folder = self._make_output_folder(cfg['output_folder'])
         no_cache = cfg['no_cache']
         wf = get_working_folder()
+        
+        # 设置进度管理器
+        from geektime_dl.progress import DownloadProgress
+        progress_manager = DownloadProgress(course_id)
+        dc.set_progress_manager(course_id)
+        
         try:
             course_intro = dc.get_column_intro(course_id, no_cache=no_cache)
         except GkApiError as e:
@@ -116,23 +129,93 @@ class EBook(Command):
                 course_intro['column_title']))
             return
 
+        # 显示当前进度
+        print(f"当前状态: {progress_manager.get_progress_summary()}")
+
         # fetch raw data
         print(colored('开始制作电子书:{}-{}'.format(
             course_id, course_intro['column_title']), 'green'))
         pbar_desc = '数据爬取中:{}'.format(course_intro['column_title'][:10])
         article_ids = course_intro['articles']
-        article_ids = tqdm(article_ids)
-        article_ids.set_description(pbar_desc)
-        articles = list()
-        for a in article_ids:
-            aid = a['id']
-            article = dc.get_article_content(aid, no_cache=no_cache)
-            if cfg['comments_count'] > 0:
-                article['article_content'] += self._render_comment_html(
-                    article['comments'],
-                    cfg['comments_count']
-                )
-            articles.append(article)
+        
+        # 保存总文章数到进度管理器
+        if not no_cache:
+            progress = progress_manager.load_progress()
+            if not progress or progress.get('total_articles', 0) == 0:
+                progress_manager.save_progress([], len(article_ids))
+        
+        # 断点续下载：检查已下载的文章
+        if not no_cache:
+            cached_articles = []
+            uncached_articles = []
+            downloaded_ids = set(progress_manager.get_downloaded_articles())
+            
+            print("检查已下载内容...")
+            for a in article_ids:
+                aid = a['id']
+                if aid in downloaded_ids:
+                    cached_article = dc._cache.get_article(aid)
+                    if cached_article:
+                        cached_articles.append(cached_article)
+                    else:
+                        uncached_articles.append(a)
+                else:
+                    cached_article = dc._cache.get_article(aid)
+                    if cached_article:
+                        cached_articles.append(cached_article)
+                    else:
+                        uncached_articles.append(a)
+            
+            print(f"已缓存 {len(cached_articles)} 篇，需要下载 {len(uncached_articles)} 篇")
+            
+            # 先处理需要下载的文章
+            articles = []
+            if uncached_articles:
+                uncached_ids = tqdm(uncached_articles)
+                uncached_ids.set_description(pbar_desc)
+                for a in uncached_ids:
+                    aid = a['id']
+                    try:
+                        article = dc.get_article_content(aid, no_cache=no_cache)
+                        if cfg['comments_count'] > 0:
+                            article['article_content'] += self._render_comment_html(
+                                article['comments'],
+                                cfg['comments_count']
+                            )
+                        articles.append(article)
+                        # 显示当前进度
+                        current_progress = progress_manager.get_progress_summary()
+                        print(f"  {current_progress}")
+                    except Exception as e:
+                        print(f"\n❌ 下载文章 {aid} 失败: {e}")
+                        # 继续下载其他文章
+                        continue
+            
+            # 添加已缓存的文章
+            articles.extend(cached_articles)
+            
+            # 按原始顺序排序
+            article_dict = {article['id']: article for article in articles}
+            articles = [article_dict[a['id']] for a in article_ids if a['id'] in article_dict]
+            
+        else:
+            # 不使用缓存，全部重新下载
+            articles = []
+            article_ids = tqdm(article_ids)
+            article_ids.set_description(pbar_desc)
+            for a in article_ids:
+                aid = a['id']
+                try:
+                    article = dc.get_article_content(aid, no_cache=no_cache)
+                    if cfg['comments_count'] > 0:
+                        article['article_content'] += self._render_comment_html(
+                            article['comments'],
+                            cfg['comments_count']
+                        )
+                    articles.append(article)
+                except Exception as e:
+                    print(f"\n❌ 下载文章 {aid} 失败: {e}")
+                    continue
 
         if cfg.get('dont_ebook', False):
             return

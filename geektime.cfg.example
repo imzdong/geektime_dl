@@ -1,0 +1,16 @@
+# Token登录示例配置文件
+# 复制此文件为 geektime.cfg 并填入实际值
+
+# 方式一：使用Token登录（推荐）
+[default]
+auth_type = token
+auth_token = _ga=666
+output_folder = ./output
+
+# 方式二：使用传统账号密码登录
+# [default]
+# auth_type = password
+# account = 13800138000
+# password = your_password_here
+# area = 86
+# output_folder = ./output
