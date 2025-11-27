@@ -49,6 +49,7 @@ htmlcov
 output/
 check_token.py
 debug_article.py
-test_*.py
+# Only ignore test files in root directory, not in tests/ folder
+/test_*.py
 
 # Utils folder contains useful utilities, keep it
