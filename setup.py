@@ -45,7 +45,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'geektime = geektime_dl:geektime',
+            'geektime = geektime_dl:main',
         ],
     }
 )

@@ -45,4 +45,4 @@ USER geektime
 RUN mkdir -p /app/config
 
 # 设置默认命令
-CMD ["--help"]
+CMD ["geektime", "--help"]
