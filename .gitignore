@@ -44,3 +44,11 @@ venv
 # tmp files
 geektime.cfg
 htmlcov
+
+# Output and debug files
+output/
+check_token.py
+debug_article.py
+test_*.py
+
+# Utils folder contains useful utilities, keep it
