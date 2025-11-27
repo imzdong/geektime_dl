@@ -98,6 +98,104 @@ geektime ebook <course_id> [--output-folder=<output_folder>]
 notice: 此 subcmd 需要先执行 login subcmd
 
 
+## Docker 部署
+
+项目支持标准 Docker 工作流：构建镜像 → 启动容器 → 分享镜像。
+
+### 🐳 标准 Docker 工作流
+
+#### 1. 构建镜像
+
+```bash
+# 克隆项目
+git clone https://github.com/jachinlin/geektime_dl.git
+cd geektime_dl
+
+# 构建Docker镜像
+docker build -t geektime_dl:latest .
+
+# 或使用构建脚本（推荐）
+./build.sh
+```
+
+#### 2. 启动容器
+
+```bash
+# 使用docker-compose（推荐）
+docker-compose up -d
+
+# 或使用docker run
+docker run -d --name geektime_dl \
+  -v $(pwd)/data:/app/data \
+  -v $(pwd)/config:/app/config \
+  -v $(pwd)/cache:/app/cache \
+  geektime_dl:latest
+```
+
+#### 3. 使用容器
+
+```bash
+# 查看容器状态
+docker ps | grep geektime_dl
+
+# 查询课程
+docker exec geektime_dl geektime query
+
+# 下载课程
+docker exec geektime_dl geektime ebook 48 --comments-count 50
+
+# 查看下载结果
+ls -la data/
+```
+
+### 📦 分享镜像到其他电脑
+
+#### 导出镜像
+```bash
+# 导出镜像文件
+docker save -o geektime_dl.tar geektime_dl:latest
+
+# 压缩镜像
+gzip geektime_dl.tar
+```
+
+#### 在其他电脑导入
+```bash
+# 导入镜像
+docker load -i geektime_dl.tar.gz
+
+# 验证镜像
+docker images | grep geektime_dl
+```
+
+### 🛠️ 快速部署脚本
+
+```bash
+# 一键构建和部署
+./build.sh      # 构建镜像
+./deploy.sh     # 部署容器
+```
+
+### 📁 目录映射
+
+| 宿主机目录 | 容器目录 | 用途 |
+|------------|----------|------|
+| `./data` | `/app/data` | 下载的电子书文件 |
+| `./config` | `/app/config` | 配置文件 |
+| `./cache` | `/app/cache` | 缓存文件，支持断点续传 |
+
+### 📚 详细文档
+
+- [DOCKER_INSTALL.md](DOCKER_INSTALL.md) - 完整的Docker安装和使用指南
+- [DOCKER_USAGE.md](DOCKER_USAGE.md) - 详细使用说明
+
+### 🚀 生产环境
+
+```bash
+# 生产环境部署
+docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+```
+
 ## Todo list
 
 - [X] 评论

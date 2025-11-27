@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  geektime:
+    build: .
+    image: geektime_dl:latest
+    container_name: geektime_dl
+    volumes:
+      # 数据卷 - 宿主机目录映射到容器
+      - ./data:/app/data            # 下载输出目录
+      - ./config:/app/config        # 配置文件目录
+      - ./cache:/app/cache          # 缓存目录
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app
+    restart: unless-stopped
+    # 默认显示帮助，可以通过命令行覆盖
+    command: ["geektime", "--help"]
