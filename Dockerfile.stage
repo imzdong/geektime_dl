@@ -1,0 +1,68 @@
+# 构建阶段
+FROM python:3.9-slim as builder
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# 安装构建依赖
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /build
+
+# 升级pip
+RUN pip install --upgrade pip setuptools wheel
+
+# 只安装运行时依赖到临时位置
+RUN pip install --no-cache-dir --root=/install \
+    requests \
+    termcolor \
+    tqdm \
+    "Pillow>=8.0.0" \
+    "Jinja2>=3.0.0" \
+    peewee
+
+# 克隆并安装ebook-py
+RUN git clone https://github.com/jachinlin/ebook-py.git && \
+    pip install --no-cache-dir --root=/install -e ebook-py/
+
+# 运行阶段
+FROM python:3.9-slim
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
+
+# 安装运行时系统依赖
+RUN apt-get update && apt-get install -y \
+    libjpeg62-turbo \
+    zlib1g \
+    libpng16-16 \
+    libffi7 \
+    libssl1.1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# 从构建阶段复制Python包
+COPY --from=builder /install /usr/local
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制应用代码
+COPY geektime_dl/ ./geektime_dl/
+COPY geektime.py .
+
+# 创建数据目录
+RUN mkdir -p /app/data /app/config /app/cache
+
+# 创建入口脚本
+RUN echo 'import sys; sys.path.insert(0, "/app"); from geektime_dl import main; main()' > /app/run.py
+
+# 设置入口点
+ENTRYPOINT ["python", "/app/run.py"]
+CMD ["--help"]

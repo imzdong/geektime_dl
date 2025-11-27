@@ -14,7 +14,7 @@ ENV PYTHONUNBUFFERED=1 \
 RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
-    zlib-dev \
+    zlib1g-dev \
     libpng-dev \
     libffi-dev \
     libssl-dev \

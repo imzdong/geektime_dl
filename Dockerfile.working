@@ -1,0 +1,52 @@
+FROM python:3.9-slim
+
+# 设置环境变量
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libjpeg-dev \
+    zlib1g-dev \
+    libpng-dev \
+    libffi-dev \
+    libssl-dev \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置工作目录
+WORKDIR /app
+
+# 升级pip
+RUN pip install --upgrade pip setuptools wheel
+
+# 先安装基本依赖（避免git依赖问题）
+RUN pip install --no-cache-dir \
+    requests \
+    termcolor \
+    tqdm \
+    "Pillow>=8.0.0" \
+    "Jinja2>=3.0.0" \
+    peewee \
+    beautifulsoup4 \
+    lxml
+
+# 克隆ebook-py依赖
+RUN git clone https://github.com/jachinlin/ebook-py.git ebook-py && \
+    pip install -e ebook-py/
+
+# 复制应用代码
+COPY geektime_dl/ ./geektime_dl/
+COPY geektime.py .
+
+# 创建数据目录
+RUN mkdir -p /app/data /app/config /app/cache
+
+# 创建简单的入口脚本
+RUN echo 'import sys; sys.path.insert(0, "/app"); from geektime_dl import main; main()' > /app/run.py
+
+# 设置入口点
+ENTRYPOINT ["python", "/app/run.py"]
+CMD ["--help"]

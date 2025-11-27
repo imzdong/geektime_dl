@@ -30,17 +30,23 @@ echo -e "${YELLOW}清理旧镜像...${NC}"
 docker rmi $IMAGE_NAME:$VERSION 2>/dev/null || true
 docker rmi $IMAGE_NAME:latest 2>/dev/null || true
 
-# 构建镜像
+# 尝试构建镜像（按优先级尝试不同版本）
 echo -e "${YELLOW}构建Docker镜像...${NC}"
-docker build -t $IMAGE_NAME:$VERSION .
-docker tag $IMAGE_NAME:$VERSION $IMAGE_NAME:latest
 
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}✅ 镜像构建成功${NC}"
+# 尝试标准Dockerfile
+if docker build -t $IMAGE_NAME:$VERSION .; then
+    echo -e "${GREEN}✅ 标准Dockerfile构建成功${NC}"
+elif docker build -f Dockerfile.working -t $IMAGE_NAME:$VERSION .; then
+    echo -e "${GREEN}✅ Dockerfile.working构建成功${NC}"
+elif docker build -f Dockerfile.simple -t $IMAGE_NAME:$VERSION .; then
+    echo -e "${GREEN}✅ Dockerfile.simple构建成功${NC}"
 else
-    echo -e "${RED}❌ 镜像构建失败${NC}"
+    echo -e "${RED}❌ 所有Dockerfile版本都构建失败${NC}"
+    echo -e "${YELLOW}请检查 DOCKER_TROUBLESHOOTING.md 获取帮助${NC}"
     exit 1
 fi
+
+docker tag $IMAGE_NAME:$VERSION $IMAGE_NAME:latest
 
 # 显示镜像信息
 echo ""

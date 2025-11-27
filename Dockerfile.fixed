@@ -10,23 +10,37 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     libjpeg-dev \
     zlib1g-dev \
+    libpng-dev \
+    libffi-dev \
+    libssl-dev \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
 WORKDIR /app
 
+# 升级pip
+RUN pip install --upgrade pip
+
 # 复制requirements文件并安装Python依赖
-COPY requirements/ requirements/
-RUN pip install --no-cache-dir -r requirements/base.txt
+COPY requirements/docker.txt requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用代码
 COPY . .
 
-# 安装应用
-RUN pip install -e .
+# 安装应用（跳过有问题的依赖）
+RUN pip install --no-deps -e .
 
 # 创建数据目录
 RUN mkdir -p /app/data /app/config /app/cache
+
+# 创建应用用户
+RUN useradd --create-home --shell /bin/bash geektime && \
+    chown -R geektime:geektime /app
+
+# 切换到非root用户
+USER geektime
 
 # 设置入口点
 ENTRYPOINT ["python", "-m", "geektime_dl"]
