@@ -4,7 +4,7 @@
 # 提供更好的容器内交互体验
 
 CONTAINER_NAME="geektime_dl"
-IMAGE_TAG="geektime_dl:enhanced"
+IMAGE_TAG="geektime_dl:optimized"
 
 case "$1" in
     start)
@@ -13,10 +13,11 @@ case "$1" in
             echo "✅ 容器已在运行"
         else
             docker run -d --name $CONTAINER_NAME \
-                -v $(pwd)/data:/app/data \
+                -v $(pwd)/output:/app/output \
                 -v $(pwd)/config:/app/config \
                 -v $(pwd)/cache:/app/cache \
-                $IMAGE_TAG
+                -v $(pwd)/data:/app/data \
+                --entrypoint tail $IMAGE_TAG -f /dev/null
             echo "✅ 容器已启动"
             
             # 修复容器内的geektime命令
@@ -82,8 +83,13 @@ case "$1" in
             echo "用法: $0 ebook <course_id> [options]"
             exit 1
         fi
-        echo "下载课程: $1"
-        docker exec -it $CONTAINER_NAME /app/geektime ebook "$@" --config /app/config/geektime.cfg --auth-type token --no-login
+        COURSE_ID="$1"
+        shift
+        echo "下载课程: $COURSE_ID"
+        # 创建课程专用目录
+        mkdir -p "output/mobi/$COURSE_ID" "output/epub/$COURSE_ID" "output/pdf/$COURSE_ID"
+        # 按格式分别下载到不同目录
+        docker exec -it $CONTAINER_NAME /app/geektime ebook $COURSE_ID "$@" --config /app/config/geektime.cfg --auth-type token --no-login --output-folder "/app/output/mobi/$COURSE_ID"
         ;;
     *)
         echo "🎓 GeekTime DL Docker 管理工具"
