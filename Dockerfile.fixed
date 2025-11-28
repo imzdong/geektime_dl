@@ -3,7 +3,8 @@ FROM python:3.9-slim
 # 设置环境变量
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    DEBIAN_FRONTEND=noninteractive
+    DEBIAN_FRONTEND=noninteractive \
+    PATH="/app:$PATH"
 
 # 安装系统依赖
 RUN apt-get update && apt-get install -y \
@@ -14,6 +15,7 @@ RUN apt-get update && apt-get install -y \
     libffi-dev \
     libssl-dev \
     git \
+    bash-completion \
     && rm -rf /var/lib/apt/lists/*
 
 # 设置工作目录
@@ -22,26 +24,91 @@ WORKDIR /app
 # 升级pip
 RUN pip install --upgrade pip
 
-# 复制requirements文件并安装Python依赖
-COPY requirements/docker.txt requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+# 安装基础Python依赖
+RUN pip install --no-cache-dir \
+    requests>=2.25.0 \
+    termcolor \
+    tqdm \
+    "Pillow>=8.0.0" \
+    "Jinja2>=3.0.0" \
+    peewee \
+    beautifulsoup4 \
+    lxml
 
 # 复制应用代码
-COPY . .
+COPY geektime_dl/ /app/geektime_dl/
+COPY geektime.py /app/
+COPY setup.py /app/
 
-# 安装应用（跳过有问题的依赖）
-RUN pip install --no-deps -e .
+# 手动安装ebook-py
+RUN pip install git+https://github.com/jachinlin/ebook-py.git
 
 # 创建数据目录
 RUN mkdir -p /app/data /app/config /app/cache
 
-# 创建应用用户
+# 创建应用用户并设置权限
 RUN useradd --create-home --shell /bin/bash geektime && \
     chown -R geektime:geektime /app
 
-# 切换到非root用户
+# 切换到应用用户
 USER geektime
 
+# 创建geektime命令脚本
+RUN echo '#!/usr/bin/env python' > /app/geektime && \
+    echo 'import sys' >> /app/geektime && \
+    echo 'sys.path.insert(0, "/app")' >> /app/geektime && \
+    echo 'from geektime_dl import main' >> /app/geektime && \
+    echo 'if __name__ == "__main__":' >> /app/geektime && \
+    echo '    main()' >> /app/geektime && \
+    chmod +x /app/geektime
+
+# 创建全局符号链接
+USER root
+RUN ln -sf /app/geektime /usr/local/bin/geektime
+USER geektime
+
+# 配置.bashrc
+RUN echo 'export PATH="/app:$PATH"' >> ~/.bashrc && \
+    echo 'export GEEKTIME_CONFIG="/app/config/geektime.cfg"' >> ~/.bashrc && \
+    echo 'export GEEKTIME_DATA_DIR="/app/data"' >> ~/.bashrc && \
+    echo 'export GEEKTIME_CACHE_DIR="/app/cache"' >> ~/.bashrc && \
+    echo 'cd /app' >> ~/.bashrc && \
+    echo '# GeekTime DL 别名和函数' >> ~/.bashrc && \
+    echo 'alias gt="geektime"' >> ~/.bashrc && \
+    echo 'alias ls="ls --color=auto"' >> ~/.bashrc && \
+    echo 'alias ll="ls -la"' >> ~/.bashrc && \
+    echo '# 快速函数' >> ~/.bashrc && \
+    echo 'gq() { geektime query --config /app/config/geektime.cfg --auth-type token --no-login "$@"; }' >> ~/.bashrc && \
+    echo 'ge() { geektime ebook "$@" --config /app/config/geektime.cfg --auth-type token --no-login; }' >> ~/.bashrc
+
+# 创建启动脚本
+RUN echo '#!/bin/bash' > /app/entrypoint.sh && \
+    echo 'echo "🎓 欢迎使用 GeekTime DL 容器!"' >> /app/entrypoint.sh && \
+    echo 'echo ""' >> /app/entrypoint.sh && \
+    echo 'echo "🎯 当前配置:"' >> /app/entrypoint.sh && \
+    echo 'echo "  配置文件: ${GEEKTIME_CONFIG}"' >> /app/entrypoint.sh && \
+    echo 'echo "  数据目录: ${GEEKTIME_DATA_DIR}"' >> /app/entrypoint.sh && \
+    echo 'echo "  缓存目录: ${GEEKTIME_CACHE_DIR}"' >> /app/entrypoint.sh && \
+    echo 'echo ""' >> /app/entrypoint.sh && \
+    echo 'echo "📋 可用命令:"' >> /app/entrypoint.sh && \
+    echo 'echo "  geektime query           | gq        # 查询课程列表"' >> /app/entrypoint.sh && \
+    echo 'echo "  geektime ebook 48        | ge 48     # 下载课程48"' >> /app/entrypoint.sh && \
+    echo 'echo "  geektime login           |           # 登录"' >> /app/entrypoint.sh && \
+    echo 'echo "  gt query                 |           # 使用别名查询"' >> /app/entrypoint.sh && \
+    echo 'echo ""' >> /app/entrypoint.sh && \
+    echo 'echo "💡 示例:"' >> /app/entrypoint.sh && \
+    echo 'echo "  gq                                    # 查询课程"' >> /app/entrypoint.sh && \
+    echo 'echo "  ge 48 --comments-count 50            # 下载课程48，包含50条评论"' >> /app/entrypoint.sh && \
+    echo 'echo ""' >> /app/entrypoint.sh && \
+    echo 'echo "📁 目录映射:"' >> /app/entrypoint.sh && \
+    echo 'echo "  /app/data   -> 宿主机 ./data"' >> /app/entrypoint.sh && \
+    echo 'echo "  /app/config -> 宿主机 ./config"' >> /app/entrypoint.sh && \
+    echo 'echo "  /app/cache  -> 宿主机 ./cache"' >> /app/entrypoint.sh && \
+    echo 'echo ""' >> /app/entrypoint.sh && \
+    echo 'echo "🚀 输入 exit 退出容器，或开始使用命令..."' >> /app/entrypoint.sh && \
+    echo 'echo ""' >> /app/entrypoint.sh && \
+    echo 'exec /bin/bash' >> /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
 # 设置入口点
-ENTRYPOINT ["python", "-m", "geektime_dl"]
-CMD ["--help"]
+ENTRYPOINT ["/app/entrypoint.sh"]

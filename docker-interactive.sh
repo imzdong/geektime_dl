@@ -18,15 +18,27 @@ case "$1" in
                 -v $(pwd)/cache:/app/cache \
                 $IMAGE_TAG
             echo "✅ 容器已启动"
+            
+            # 修复容器内的geektime命令
+            echo "🔧 修复容器内命令..."
+            docker exec -u root $CONTAINER_NAME ln -sf /app/geektime /usr/local/bin/geektime 2>/dev/null || true
+            docker exec $CONTAINER_NAME bash -c 'echo "export PATH=\"/app:\$PATH\"" >> ~/.bashrc' 2>/dev/null || true
+            docker exec $CONTAINER_NAME bash -c 'echo "alias gt=\"/app/geektime\"" >> ~/.bashrc' 2>/dev/null || true
+            docker exec $CONTAINER_NAME bash -c 'echo "alias gq=\"/app/geektime query --config /app/config/geektime.cfg --auth-type token --no-login\"" >> ~/.bashrc' 2>/dev/null || true
+            docker exec $CONTAINER_NAME bash -c 'echo "alias ge=\"/app/geektime ebook --config /app/config/geektime.cfg --auth-type token --no-login\"" >> ~/.bashrc' 2>/dev/null || true
+            echo "✅ 修复完成"
         fi
         echo ""
         echo "🚀 进入容器:"
         echo "  $0 enter"
         echo ""
         echo "📋 在容器内可使用命令:"
-        echo "  /app/geektime query    # 查询课程"
-        echo "  /app/geektime ebook 48 # 下载课程"
-        echo "  /app/geektime login    # 登录"
+        echo "  geektime query           # 查询课程（推荐）"
+        echo "  /app/geektime query      # 查询课程"
+        echo "  geektime ebook 48        # 下载课程"
+        echo "  gt query                 # 使用别名查询"
+        echo "  gq                       # 使用快速别名查询"
+        echo "  ge 48                    # 使用快速别名下载"
         echo ""
         ;;
     enter)
