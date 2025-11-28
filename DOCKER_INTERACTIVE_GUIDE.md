@@ -22,53 +22,67 @@
 
 ### 基础命令
 ```bash
-# 使用完整路径命令
+# 现在可以直接使用geektime命令（已修复）
+geektime query
+geektime ebook 48
+geektime login
+
+# 或者使用完整路径
 /app/geektime query
 /app/geektime ebook 48
 /app/geektime login
 
 # 查看帮助
-/app/geektime help
+geektime help
 ```
 
-### 创建便捷别名（推荐）
+### 使用内置别名（推荐）
 
-进入容器后，可以创建别名来简化使用：
+容器启动时已自动创建别名，可以直接使用：
 
 ```bash
-# 创建别名
-alias gt='/app/geektime'
-alias gq='/app/geektime query --config /app/config/geektime.cfg --auth-type token --no-login'
-alias ge='/app/geektime ebook --config /app/config/geektime.cfg --auth-type token --no-login'
-
-# 使用别名
+# 使用已创建的别名
 gq                    # 查询课程
 ge 48                 # 下载课程48
 ge 48 --comments-count 50  # 下载课程48，包含50条评论
+gt query              # 使用别名查询
+gt ebook 48           # 使用别名下载
+
+# 手动创建更多别名（可选）
+alias gt='geektime'
+alias gq='geektime query --config /app/config/geektime.cfg --auth-type token --no-login'
+alias ge='geektime ebook --config /app/config/geektime.cfg --auth-type token --no-login'
 ```
 
 ## 📋 常用操作示例
 
 ### 查询课程列表
 ```bash
-# 完整命令
-/app/geektime query --config /app/config/geektime.cfg --auth-type token --no-login
+# 直接使用geektime命令（已修复PATH问题）
+geektime query --config /app/config/geektime.cfg --auth-type token --no-login
 
 # 使用别名
 gq
+
+# 使用gt别名
+gt query
 ```
 
 ### 下载课程
 ```bash
-# 下载课程48，使用默认设置
-/app/geektime ebook 48 --config /app/config/geektime.cfg --auth-type token --no-login
+# 直接使用geektime命令
+geektime ebook 48 --config /app/config/geektime.cfg --auth-type token --no-login
 
 # 下载课程48，包含50条评论
-/app/geektime ebook 48 --config /app/config/geektime.cfg --auth-type token --no-login --comments-count 50
+geektime ebook 48 --config /app/config/geektime.cfg --auth-type token --no-login --comments-count 50
 
 # 使用别名
 ge 48
 ge 48 --comments-count 50
+
+# 使用gt别名
+gt ebook 48
+gt ebook 48 --comments-count 50
 ```
 
 ### 下载多个课程
